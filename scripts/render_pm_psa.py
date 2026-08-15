@@ -336,6 +336,157 @@ def draw_scene(offset_x: int = 0, speed_lines: float = 0.0) -> Image.Image:
 
 
 # ══════════════════════════════════════════════════════════════
+# 포돌이 (경찰 캐릭터)
+# ══════════════════════════════════════════════════════════════
+PODORI_FILE = Path(__file__).resolve().parent.parent / "assets" / "pm-enforcement" / "podori.png"
+
+
+def load_podori(size: int) -> Image.Image:
+    """포돌이 레이어를 얻는다.
+
+    assets/pm-enforcement/podori.png (배경 투명 PNG) 가 있으면 **그 파일을
+    그대로** 쓰고, 없을 때만 아래 draw_podori() 의 대역을 그린다.
+    경찰청 공식 포돌이 파일을 그 경로에 넣고 다시 렌더하면 코드 수정 없이
+    공식 캐릭터로 교체된다.
+    """
+    if PODORI_FILE.exists():
+        im = Image.open(PODORI_FILE).convert("RGBA")
+        w = max(1, int(round(im.width * size / im.height)))
+        print(f"  포돌이: {PODORI_FILE.name} 사용 ({im.width}x{im.height} → {w}x{size})")
+        return im.resize((w, size), Image.LANCZOS)
+    print(f"  포돌이: 대역 캐릭터 사용 (공식 파일을 {PODORI_FILE} 에 넣으면 교체됨)")
+    return draw_podori(size)
+
+
+def draw_podori(size: int = 640) -> Image.Image:
+    """경찰 캐릭터를 RGBA 레이어로 그려 반환 (공식 파일이 없을 때의 대역).
+
+    비율은 전체 높이 대비 비율(u)로 잡는다. 머리+모자가 약 절반을 차지하는
+    2.5등신 체형.
+    """
+    T = size
+
+    def u(f):
+        return int(round(f * T))
+
+    OL = (20, 20, 22)
+    SKIN_C = (247, 219, 187)
+    NAVY = (30, 38, 60)
+    GOLD = (233, 178, 45)
+    MOUTH_C = (231, 74, 48)
+    BLUSH_C = (243, 154, 138)
+    NOSE_C = (176, 130, 86)
+    SHIRT_C = (255, 255, 255)
+
+    lw = u(0.86)
+    lay = Image.new("RGBA", (lw, T), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    cx = lw // 2
+    LW = max(3, u(0.011))
+
+    hcy, R = u(0.315), u(0.205)
+
+    # ── 다리 · 신발 ──
+    for sgn in (-1, 1):
+        lx = cx + sgn * u(0.072)
+        d.rounded_rectangle([lx - u(0.052), u(0.735), lx + u(0.052), u(0.935)],
+                            radius=u(0.016), fill=NAVY, outline=OL, width=LW)
+        d.ellipse([lx - u(0.088), u(0.895), lx + u(0.088), u(0.995)], fill=OL)
+
+    # ── 팔: 흰 반팔 → 맨팔 → 흰 장갑 ──
+    for sgn in (-1, 1):
+        ax = cx + sgn * u(0.178)
+        d.rounded_rectangle([ax - u(0.046), u(0.545), ax + u(0.046), u(0.655)],
+                            radius=u(0.020), fill=SHIRT_C, outline=OL, width=LW)
+        d.rounded_rectangle([ax - u(0.034), u(0.640), ax + u(0.034), u(0.725)],
+                            radius=u(0.016), fill=SKIN_C, outline=OL, width=LW)
+        d.ellipse([ax - u(0.054), u(0.705), ax + u(0.054), u(0.800)],
+                  fill=SHIRT_C, outline=OL, width=LW)
+
+    # ── 몸통: 흰 제복 ──
+    d.rounded_rectangle([cx - u(0.158), u(0.520), cx + u(0.158), u(0.760)],
+                        radius=u(0.040), fill=SHIRT_C, outline=OL, width=LW)
+    # 옷깃 V
+    d.polygon([(cx - u(0.082), u(0.520)), (cx, u(0.610)), (cx + u(0.082), u(0.520))],
+              fill=NAVY, outline=OL)
+    # 앞여밈 선
+    d.line([(cx, u(0.610)), (cx, u(0.756))], fill=OL, width=max(2, u(0.008)))
+    # 흉장(태극 배지) · 견장
+    d.ellipse([cx + u(0.052), u(0.596), cx + u(0.118), u(0.662)],
+              fill=(238, 242, 248), outline=OL, width=max(2, u(0.006)))
+    d.ellipse([cx + u(0.070), u(0.614), cx + u(0.100), u(0.644)], fill=(198, 58, 58))
+    d.rounded_rectangle([cx - u(0.128), u(0.560), cx - u(0.062), u(0.592)],
+                        radius=u(0.008), fill=GOLD, outline=OL, width=max(2, u(0.006)))
+
+    # ── 귀 (머리보다 먼저 → 뒤에 깔림). 포돌이의 상징: 크고 옆으로 벌어짐 ──
+    for sgn in (-1, 1):
+        ex = cx + sgn * u(0.232)
+        d.ellipse([ex - u(0.078), hcy - u(0.082), ex + u(0.078), hcy + u(0.078)],
+                  fill=SKIN_C, outline=OL, width=LW)
+        d.arc([ex - u(0.044), hcy - u(0.048), ex + u(0.044), hcy + u(0.044)],
+              90 if sgn > 0 else 270, 270 if sgn > 0 else 90, fill=OL, width=max(2, u(0.007)))
+
+    # ── 머리 ──
+    d.ellipse([cx - R, hcy - R, cx + R, hcy + R], fill=SKIN_C, outline=OL, width=LW)
+    # 볼터치
+    for sgn in (-1, 1):
+        bx = cx + sgn * u(0.140)
+        d.ellipse([bx - u(0.034), hcy + u(0.016), bx + u(0.034), hcy + u(0.058)], fill=BLUSH_C)
+    # 눈
+    for sgn in (-1, 1):
+        ex = cx + sgn * u(0.082)
+        d.ellipse([ex - u(0.062), hcy - u(0.085), ex + u(0.062), hcy + u(0.040)],
+                  fill=(255, 255, 255), outline=OL, width=LW)
+        d.ellipse([ex - u(0.038), hcy - u(0.055), ex + u(0.038), hcy + u(0.020)], fill=OL)
+        d.ellipse([ex - u(0.028), hcy - u(0.048), ex - u(0.004), hcy - u(0.024)],
+                  fill=(255, 255, 255))
+    # 코 · 웃는 입
+    d.ellipse([cx - u(0.032), hcy + u(0.030), cx + u(0.032), hcy + u(0.078)],
+              fill=NOSE_C, outline=OL, width=max(2, u(0.006)))
+    d.chord([cx - u(0.072), hcy + u(0.066), cx + u(0.072), hcy + u(0.166)], 0, 180,
+            fill=MOUTH_C, outline=OL, width=LW)
+
+    # ── 정모: 챙 → 금색 띠 → 크라운 → 독수리 엠블럼 ──
+    cy = hcy - u(0.140)
+    d.ellipse([cx - u(0.250), cy - u(0.004), cx + u(0.250), cy + u(0.086)],
+              fill=NAVY, outline=OL, width=LW)
+    # 챙 위 격자 느낌의 밝은 선
+    d.arc([cx - u(0.250), cy - u(0.004), cx + u(0.250), cy + u(0.086)], 180, 360,
+          fill=(96, 106, 132), width=max(2, u(0.006)))
+    d.pieslice([cx - u(0.212), cy - u(0.245), cx + u(0.212), cy + u(0.046)], 180, 360,
+               fill=SHIRT_C, outline=OL, width=LW)
+    d.rounded_rectangle([cx - u(0.222), cy - u(0.030), cx + u(0.222), cy + u(0.012)],
+                        radius=u(0.012), fill=GOLD, outline=OL, width=max(2, u(0.006)))
+    # 독수리 엠블럼 (펼친 날개 + 태극)
+    ey = cy - u(0.096)
+    for sgn in (-1, 1):
+        d.polygon([(cx, ey - u(0.026)),
+                   (cx + sgn * u(0.096), ey - u(0.008)),
+                   (cx + sgn * u(0.040), ey + u(0.020))], fill=GOLD, outline=OL)
+    d.ellipse([cx - u(0.022), ey - u(0.036), cx + u(0.022), ey + u(0.026)],
+              fill=GOLD, outline=OL, width=max(2, u(0.005)))
+    d.ellipse([cx - u(0.011), ey - u(0.004), cx + u(0.011), ey + u(0.018)], fill=(198, 58, 58))
+    return lay
+
+
+_PODORI: Image.Image | None = None
+
+
+def speech_bubble(d: ImageDraw.ImageDraw, box, tail_to, lines):
+    """포돌이 말풍선. lines = [(텍스트, 크기, 색)]"""
+    x0, y0, x1, y1 = box
+    d.polygon([tail_to, (x0 + 30, y0 + (y1 - y0) * 0.32), (x0 + 30, y0 + (y1 - y0) * 0.62)],
+              fill=(10, 13, 22), outline=POLICE_RED)
+    d.rounded_rectangle([x0, y0, x1, y1], radius=26, fill=(10, 13, 22))
+    d.rounded_rectangle([x0, y0, x1, y1], radius=26, outline=POLICE_RED, width=5)
+    total = sum(sz + 18 for _, sz, _ in lines)
+    y = y0 + ((y1 - y0) - total) / 2 + lines[0][1] / 2 + 6
+    for s, sz, col in lines:
+        text(d, ((x0 + x1) // 2, int(y)), s, sz, fill=col, bold=0)
+        y += sz + 18
+
+
+# ══════════════════════════════════════════════════════════════
 # 이펙트
 # ══════════════════════════════════════════════════════════════
 def beacon(img: Image.Image, t: float, strength: float = 1.0) -> Image.Image:
@@ -398,11 +549,18 @@ def stamp(d, xy, label, angle_seed=0, scale=1.0, alpha_col=POLICE_RED):
 # 타임라인
 # ══════════════════════════════════════════════════════════════
 VIOLATIONS = [
-    # 자막,               금액,  앵커 키,     확대 여유(반지름 배수)
-    ("음주운전", 100000, "bottle", 1.55),
-    ("무면허 운전", 100000, "license", 1.55),
-    ("승차정원 위반", 40000, "deck", 1.40),
-    ("인명보호장구 미착용", 20000, "heads", 1.35),
+    # 자막, 금액, 근거 조문, 앵커 키, 확대 여유(반지름 배수)
+    #
+    # 조문 근거 (개인형 이동장치 기준):
+    #   제44조     술에 취한 상태에서의 운전 금지
+    #   제43조     무면허운전 등의 금지 (PM 은 원동기장치자전거 면허 이상 필요)
+    #   제50조⑩   개인형 이동장치 승차정원 초과 금지 (전동킥보드 정원 1명)
+    #   제50조④   자전거등의 운전자 인명보호 장구 착용 의무
+    #             ※ 제50조③ 은 "개인형 이동장치는 제외한다" 이므로 PM 은 ④항이 근거
+    ("음주운전", 100000, "도로교통법 제44조", "bottle", 1.55),
+    ("무면허 운전", 100000, "도로교통법 제43조", "license", 1.55),
+    ("승차정원 위반", 40000, "도로교통법 제50조제10항", "deck", 1.40),
+    ("인명보호장구 미착용", 20000, "도로교통법 제50조제4항", "heads", 1.35),
 ]
 
 
@@ -453,8 +611,25 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
                                 radius=16, fill=POLICE_RED)
             if a > 0.6:
                 text(d, (W // 2, 300), "단 속", 62, fill=WHITE, bold=0)
-        if since >= 0.45:
-            sub_box(d, "잠깐! 개인형 이동장치", "도로교통법 위반으로 단속하겠습니다.")
+        # 포돌이 등장: 아래에서 튀어오르며 말풍선으로 단속 고지
+        if since >= 0.40:
+            k = ease_out(clamp((since - 0.40) / 0.45))
+            pod = _PODORI
+            px = 26
+            py = int(lerp(H + 40, H - pod.height - 24, k))
+            img.paste(pod, (px, py), pod)
+            d = ImageDraw.Draw(img)
+            if k > 0.55:
+                head_y = py + int(pod.height * 0.30)
+                speech_bubble(
+                    d,
+                    (px + pod.width - 40, head_y - 150, W - 34, head_y + 190),
+                    (px + pod.width - 78, head_y + 10),
+                    [("잠깐!", 50, WARN),
+                     ("개인형 이동장치", 36, WHITE),
+                     ("도로교통법 위반으로", 36, WHITE),
+                     ("단속하겠습니다", 44, POLICE_RED)],
+                )
         return img
 
     # ─────────────────────────── 3.0–4.0  문제 제시
@@ -501,7 +676,7 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
         idx = int((t - T_OBSERVE_END) // T_CATCH_EACH)
         idx = min(idx, 3)
         local = (t - T_OBSERVE_END) - idx * T_CATCH_EACH
-        label, amount, key, pad = VIOLATIONS[idx]
+        label, amount, article, key, pad = VIOLATIONS[idx]
         box, circ = violation_target(key, pad)
 
         # 0.0-0.5 줌인 / 0.5-3.5 유지 / 3.5-4.0 살짝 더
@@ -562,14 +737,16 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
         # 하단 조서 카드
         if local > 0.5:
             k = ease_out(clamp((local - 0.5) / 0.3))
-            y0 = int(lerp(H + 60, H - 470, k))
-            d.rounded_rectangle([60, y0, W - 60, y0 + 300], radius=26,
+            y0 = int(lerp(H + 60, H - 520, k))
+            d.rounded_rectangle([60, y0, W - 60, y0 + 348], radius=26,
                                 fill=(16, 20, 30), outline=POLICE_RED, width=6)
-            text(d, (110, y0 + 66), f"{idx + 1}", 78, fill=POLICE_RED, anchor="lm", bold=0)
-            text(d, (196, y0 + 66), label, 60, fill=WHITE, anchor="lm", bold=0)
-            d.line([110, y0 + 132, W - 110, y0 + 132], fill=(58, 66, 84), width=4)
-            text(d, (110, y0 + 210), "범칙금", 40, fill=(160, 170, 190), anchor="lm")
-            text(d, (W - 110, y0 + 210), won(amount), 86, fill=WARN, anchor="rm", bold=0)
+            text(d, (110, y0 + 62), f"{idx + 1}", 76, fill=POLICE_RED, anchor="lm", bold=0)
+            text(d, (194, y0 + 62), label, 58, fill=WHITE, anchor="lm", bold=0)
+            # 근거 조문
+            text(d, (110, y0 + 132), article, 34, fill=(146, 160, 186), anchor="lm")
+            d.line([110, y0 + 178, W - 110, y0 + 178], fill=(58, 66, 84), width=4)
+            text(d, (110, y0 + 258), "범칙금", 40, fill=(160, 170, 190), anchor="lm")
+            text(d, (W - 110, y0 + 258), won(amount), 86, fill=WARN, anchor="rm", bold=0)
 
         # 진행 표시
         for i in range(4):
@@ -583,17 +760,20 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
     d = ImageDraw.Draw(img)
     p = (t - T_CATCH_END) / (T_TOTAL - T_CATCH_END)   # 0..1 (5초)
 
-    # 4개 항목 나열
-    for i, (label, amount, *_rest) in enumerate(VIOLATIONS):
+    # 4개 항목 나열 (근거 조문 포함)
+    for i, (label, amount, article, *_rest) in enumerate(VIOLATIONS):
         appear = clamp((p - i * 0.055) / 0.10)
         if appear <= 0:
             continue
-        y = 430 + i * 118
+        y = 402 + i * 126
         a = ease_out(appear)
         text(d, (110, y), label, 46, fill=(int(lerp(20, 235, a)),) * 3, anchor="lm", bold=0)
-        text(d, (W - 110, y), won(amount), 52, fill=(int(lerp(20, 255, a)),
-                                                     int(lerp(20, 210, a)),
-                                                     int(lerp(20, 63, a))), anchor="rm", bold=0)
+        text(d, (110, y + 40), article, 28,
+             fill=(int(lerp(16, 140, a)), int(lerp(16, 152, a)), int(lerp(16, 178, a))),
+             anchor="lm")
+        text(d, (W - 110, y + 8), won(amount), 52, fill=(int(lerp(20, 255, a)),
+                                                         int(lerp(20, 210, a)),
+                                                         int(lerp(20, 63, a))), anchor="rm", bold=0)
 
     # 합계 롤업
     if p > 0.32:
@@ -666,6 +846,7 @@ def main(argv=None) -> int:
     print(f"  폰트   {FONT_PATH}")
     print("=" * 56)
 
+    globals()["_PODORI"] = load_podori(int(640 * (H / 1920)))
     _BG = draw_background()
     scene_static = draw_scene(offset_x=0, speed_lines=0.0)
 
