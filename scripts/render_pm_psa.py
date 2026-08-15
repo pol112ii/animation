@@ -614,10 +614,11 @@ def violation_target(key: str, pad: float):
     return (cx, cy, half * 2, half * 2), (cx, cy, r * 0.92)
 
 T_HOOK_MOVE = 1.2      # 주행 → 정지
-T_HOOK_END = 3.0
-T_PROBLEM_END = 4.0
-T_OBSERVE_END = 9.0
-T_CATCH_EACH = 4.0
+T_HOOK_END = 4.5       # 포돌이 "단속하겠습니다" 구간을 TTS 길이에 맞춰 확보
+T_PROBLEM_END = 5.4    # 도장 0.9s
+T_OBSERVE_END = 9.4    # 카운트다운 4.0s
+T_OBSERVE_DUR = T_OBSERVE_END - T_PROBLEM_END
+T_CATCH_EACH = 3.9
 T_CATCH_END = T_OBSERVE_END + T_CATCH_EACH * 4   # 25.0
 T_TOTAL = 30.0
 
@@ -697,14 +698,14 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
         img = beacon(img, t, 0.18)
         d = ImageDraw.Draw(img)
         left = T_OBSERVE_END - t
-        n = int(math.ceil(left))                        # 5,4,3,2,1
+        n = int(math.ceil(left))                        # 4,3,2,1
         frac = 1.0 - (left - int(left))
 
         # 상단 링 카운트다운
         cxr, cyr, r = W // 2, 268, 92
         d.ellipse([cxr - r, cyr - r, cxr + r, cyr + r], outline=(90, 100, 120), width=12)
-        d.arc([cxr - r, cyr - r, cxr + r, cyr + r], -90, -90 + int(360 * (left / 5.0)),
-              fill=WARN, width=12)
+        d.arc([cxr - r, cyr - r, cxr + r, cyr + r], -90,
+              -90 + int(360 * (left / T_OBSERVE_DUR)), fill=WARN, width=12)
         pop = 1.0 + 0.28 * (1 - ease_out(min(1.0, frac * 3)))
         text(d, (cxr, cyr), str(n), int(96 * pop), fill=WHITE, bold=3)
 
@@ -826,17 +827,25 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
         text(d, (W - 110, 985), won(rolling), int(lerp(70, 112, k)),
              fill=POLICE_RED, anchor="rm", bold=0)
 
-    # 마지막 문장 (톤 다운 구간)
-    if p > 0.52:
-        k = ease_out(clamp((p - 0.52) / 0.22))
-        c = int(240 * k)
-        text(d, (W // 2, 1230), "하지만", 44, fill=(c, c, c))
-        text(d, (W // 2, 1310), "돈으로 막을 수 없는 것도", 56, fill=(c, c, c), bold=0)
-        text(d, (W // 2, 1386), "있습니다", 56, fill=(c, c, c), bold=0)
+    # 마지막 문장 (톤 다운 구간). 슬로건을 살리려고 한 단계 작게.
+    if p > 0.50:
+        k = ease_out(clamp((p - 0.50) / 0.20))
+        c = int(214 * k)
+        text(d, (W // 2, 1222), "하지만", 36, fill=(c, c, c))
+        text(d, (W // 2, 1288), "돈으로 막을 수 없는 것도", 46, fill=(c, c, c), bold=0)
+        text(d, (W // 2, 1346), "있습니다", 46, fill=(c, c, c), bold=0)
 
-    # 로고 + 슬로건
-    if p > 0.74:
-        k = ease_out(clamp((p - 0.74) / 0.22))
+    # 슬로건: 이 영상의 결론이므로 노란색 + 굵게 강조
+    if p > 0.64:
+        k = ease_out(clamp((p - 0.64) / 0.20))
+        col = (int(255 * k), int(210 * k), int(63 * k))
+        text(d, (W // 2, 1476), "당신의 안전은", 50, fill=col, bold=4, stroke_fill=(12, 16, 26))
+        text(d, (W // 2, 1544), "무엇과도 바꿀 수 없습니다", 50, fill=col, bold=4,
+             stroke_fill=(12, 16, 26))
+
+    # 로고: 맨 아래
+    if p > 0.78:
+        k = ease_out(clamp((p - 0.78) / 0.20))
         if _LOGO is not None:
             # 로고는 감청/금색의 진한 색이라 어두운 배경에서 묻힌다.
             # 원래 색을 살리려고 흰 패널 위에 올린다(리컬러 금지).
@@ -849,10 +858,7 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
             faded = lg.copy()
             faded.putalpha(lg.getchannel("A").point(lambda v: int(v * k)))
             panel.paste(faded, (pad, pad), faded)
-            img.paste(panel, ((W - pw) // 2, 1648 - ph // 2), panel)
-            d = ImageDraw.Draw(img)
-        text(d, (W // 2, 1800), "당신의 안전은 무엇과도 바꿀 수 없습니다", 34,
-             fill=(int(150 * k), int(160 * k), int(180 * k)))
+            img.paste(panel, ((W - pw) // 2, H - ph - 64), panel)
     return img
 
 
