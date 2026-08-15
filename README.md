@@ -86,6 +86,47 @@ $ENV_PY $S/scripts/merge_scenes.py --inputs 1.mp4 2.mp4 --output final.mp4
 편집 프리뷰는 `assets/preview.html`을 Chrome/Edge로 직접 열어 사용합니다
 (원본 파일 덮어쓰기에 File System Access API가 필요).
 
+## 제작물: PM 단속 30초 숏폼
+
+`assets/pm-enforcement/` — 개인형 이동장치 도로교통법 위반 단속 콘텐츠.
+화이트보드 스킬과는 별개로, 코드로 장면을 그려 렌더링합니다.
+
+```bash
+.claude/skills/srt-whiteboard-animation/.venv/bin/python scripts/render_pm_psa.py
+# 가로(16:9)가 필요하면
+... scripts/render_pm_psa.py --landscape -o assets/pm-enforcement/pm-16x9.mp4
+```
+
+| 파일 | 내용 |
+|---|---|
+| `assets/pm-enforcement/pm-enforcement.mp4` | 완성본 (1080x1920, 30fps, 30초) |
+| `assets/pm-enforcement/script.srt` | 자막 (TTS 큐와 동일 타이밍) |
+| `assets/pm-enforcement/tts-script.md` | TTS 대본 · 톤 지시 · 숫자 읽기 주의 · 효과음 큐 |
+| `scripts/render_pm_psa.py` | 렌더러 |
+
+구성 (30초):
+
+| 구간 | 내용 |
+|---|---|
+| 0.0–3.0 | 훅 — 주행 → 정지(화이트 플래시) → 경광등 + "단속하겠습니다" |
+| 3.0–4.0 | 위반 4건 도장 |
+| 4.0–9.0 | 관찰 타임 — 5초 카운트다운, **나레이션 없음** |
+| 9.0–25.0 | 적발 4건 × 4초 — 확대 + 빨간 원 + 조서 카드 |
+| 25.0–30.0 | 합산 26만원 → 슬로건 |
+
+범칙금은 도로교통법상 PM 위반 기준(음주 10만 / 무면허 10만 / 승차정원 4만 /
+인명보호장구 2만)입니다. 배포 전 최신 개정 여부를 확인하세요.
+
+### 교체가 필요한 부분
+
+- **로고**: 마무리의 원형 배지는 플레이스홀더입니다. 서울경찰청 공식 BI 파일로
+  교체하세요 (`render_pm_psa.py` 의 `NOTE:` 주석 위치).
+- **폰트**: 현재 시스템에 한글 전용 폰트가 없어 `wqy-zenhei`로 렌더링됩니다.
+  본 제작에서는 나눔고딕/Noto Sans KR을 설치하고 `PSA_FONT=<경로>`로 지정하면
+  자모 균형이 개선됩니다.
+- **음성**: 영상에 TTS가 포함되어 있지 않습니다. `tts-script.md`로 합성한 뒤
+  편집 단계에서 입히세요.
+
 ## 업스트림 대비 수정 사항
 
 설치본에 로컬 수정 2건이 적용되어 있습니다. 둘 다 리눅스/macOS 환경에서
