@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 스킬 전용 가상환경 (prepare_env.py 가 생성)
+.claude/skills/srt-whiteboard-animation/.venv/
+
+# 렌더링 산출물 (용량이 커서 기본 제외)
+# 최종본을 저장하려면: git add -f <파일>.mp4
+*.mp4
+
+# OS
+Thumbs.db
+.DS_Store
