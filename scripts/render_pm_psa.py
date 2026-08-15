@@ -361,111 +361,136 @@ def load_podori(size: int) -> Image.Image:
 def draw_podori(size: int = 640) -> Image.Image:
     """경찰 캐릭터를 RGBA 레이어로 그려 반환 (공식 파일이 없을 때의 대역).
 
-    비율은 전체 높이 대비 비율(u)로 잡는다. 머리+모자가 약 절반을 차지하는
-    2.5등신 체형.
+    좌표는 전체 높이 대비 비율(u)이며, 공식 포돌이 일러스트의 실측 비율을
+    따랐다: 모자+머리가 위쪽 약 63%, 몸통·다리가 나머지인 2등신 체형.
     """
     T = size
 
     def u(f):
         return int(round(f * T))
 
-    OL = (20, 20, 22)
-    SKIN_C = (247, 219, 187)
-    NAVY = (30, 38, 60)
-    GOLD = (233, 178, 45)
-    MOUTH_C = (231, 74, 48)
-    BLUSH_C = (243, 154, 138)
-    NOSE_C = (176, 130, 86)
+    OL = (17, 17, 19)
+    SKIN_C = (247, 221, 190)
+    NAVY = (26, 33, 54)
+    GOLD = (238, 186, 47)
+    MOUTH_C = (231, 65, 40)
+    BLUSH_C = (243, 150, 96)      # 포돌이는 주황 계열 볼터치
+    NOSE_C = (183, 133, 74)
     SHIRT_C = (255, 255, 255)
 
-    lw = u(0.86)
+    lw = u(0.74)
     lay = Image.new("RGBA", (lw, T), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     cx = lw // 2
-    LW = max(3, u(0.011))
+    LW = max(3, u(0.012))
 
-    hcy, R = u(0.315), u(0.205)
+    hcy, R = u(0.451), u(0.196)
 
-    # ── 다리 · 신발 ──
+    # ── 신발 · 바지 ──
     for sgn in (-1, 1):
-        lx = cx + sgn * u(0.072)
-        d.rounded_rectangle([lx - u(0.052), u(0.735), lx + u(0.052), u(0.935)],
-                            radius=u(0.016), fill=NAVY, outline=OL, width=LW)
-        d.ellipse([lx - u(0.088), u(0.895), lx + u(0.088), u(0.995)], fill=OL)
-
-    # ── 팔: 흰 반팔 → 맨팔 → 흰 장갑 ──
+        d.ellipse([cx + sgn * u(0.078) - u(0.086), u(0.912),
+                   cx + sgn * u(0.078) + u(0.086), u(0.996)], fill=OL)
     for sgn in (-1, 1):
-        ax = cx + sgn * u(0.178)
-        d.rounded_rectangle([ax - u(0.046), u(0.545), ax + u(0.046), u(0.655)],
-                            radius=u(0.020), fill=SHIRT_C, outline=OL, width=LW)
-        d.rounded_rectangle([ax - u(0.034), u(0.640), ax + u(0.034), u(0.725)],
-                            radius=u(0.016), fill=SKIN_C, outline=OL, width=LW)
-        d.ellipse([ax - u(0.054), u(0.705), ax + u(0.054), u(0.800)],
+        x_in, x_out = cx + sgn * u(0.014), cx + sgn * u(0.118)
+        d.rounded_rectangle([min(x_in, x_out), u(0.780), max(x_in, x_out), u(0.936)],
+                            radius=u(0.014), fill=NAVY, outline=OL, width=LW)
+
+    # ── 팔: 흰 반팔 소매 → 흰 장갑 ──
+    for sgn in (-1, 1):
+        ax = cx + sgn * u(0.192)
+        d.rounded_rectangle([ax - u(0.048), u(0.644), ax + u(0.048), u(0.746)],
+                            radius=u(0.022), fill=SHIRT_C, outline=OL, width=LW)
+        d.ellipse([ax - u(0.052), u(0.730), ax + u(0.052), u(0.824)],
                   fill=SHIRT_C, outline=OL, width=LW)
 
     # ── 몸통: 흰 제복 ──
-    d.rounded_rectangle([cx - u(0.158), u(0.520), cx + u(0.158), u(0.760)],
-                        radius=u(0.040), fill=SHIRT_C, outline=OL, width=LW)
+    d.rounded_rectangle([cx - u(0.170), u(0.632), cx + u(0.170), u(0.792)],
+                        radius=u(0.026), fill=SHIRT_C, outline=OL, width=LW)
     # 옷깃 V
-    d.polygon([(cx - u(0.082), u(0.520)), (cx, u(0.610)), (cx + u(0.082), u(0.520))],
+    d.polygon([(cx - u(0.086), u(0.630)), (cx, u(0.700)), (cx + u(0.086), u(0.630))],
               fill=NAVY, outline=OL)
-    # 앞여밈 선
-    d.line([(cx, u(0.610)), (cx, u(0.756))], fill=OL, width=max(2, u(0.008)))
-    # 흉장(태극 배지) · 견장
-    d.ellipse([cx + u(0.052), u(0.596), cx + u(0.118), u(0.662)],
-              fill=(238, 242, 248), outline=OL, width=max(2, u(0.006)))
-    d.ellipse([cx + u(0.070), u(0.614), cx + u(0.100), u(0.644)], fill=(198, 58, 58))
-    d.rounded_rectangle([cx - u(0.128), u(0.560), cx - u(0.062), u(0.592)],
-                        radius=u(0.008), fill=GOLD, outline=OL, width=max(2, u(0.006)))
+    # 앞여밈 (지퍼 선 + 띠)
+    d.rectangle([cx - u(0.011), u(0.694), cx + u(0.011), u(0.790)],
+                fill=(238, 240, 244), outline=OL, width=max(2, u(0.005)))
+    # 왼가슴 노란 표장 · 오른가슴 태극 흉장 · 견장
+    d.rounded_rectangle([cx - u(0.122), u(0.664), cx - u(0.070), u(0.690)],
+                        radius=u(0.006), fill=GOLD, outline=OL, width=max(2, u(0.005)))
+    d.ellipse([cx + u(0.052), u(0.660), cx + u(0.112), u(0.720)],
+              fill=(240, 243, 248), outline=OL, width=max(2, u(0.006)))
+    d.ellipse([cx + u(0.066), u(0.674), cx + u(0.098), u(0.706)], fill=(196, 52, 52))
+    d.polygon([(cx + u(0.126), u(0.636)), (cx + u(0.170), u(0.642)),
+               (cx + u(0.166), u(0.672)), (cx + u(0.126), u(0.664))],
+              fill=(72, 78, 96), outline=OL)
 
-    # ── 귀 (머리보다 먼저 → 뒤에 깔림). 포돌이의 상징: 크고 옆으로 벌어짐 ──
+    # ── 귀 (머리 뒤에 깔림). 포돌이의 상징: 크고 옆으로 활짝 ──
     for sgn in (-1, 1):
-        ex = cx + sgn * u(0.232)
-        d.ellipse([ex - u(0.078), hcy - u(0.082), ex + u(0.078), hcy + u(0.078)],
+        ex = cx + sgn * u(0.229)
+        d.ellipse([ex - u(0.072), hcy - u(0.080), ex + u(0.072), hcy + u(0.080)],
                   fill=SKIN_C, outline=OL, width=LW)
-        d.arc([ex - u(0.044), hcy - u(0.048), ex + u(0.044), hcy + u(0.044)],
-              90 if sgn > 0 else 270, 270 if sgn > 0 else 90, fill=OL, width=max(2, u(0.007)))
+        d.arc([ex - u(0.038), hcy - u(0.046), ex + u(0.038), hcy + u(0.046)],
+              100 if sgn > 0 else 260, 260 if sgn > 0 else 100,
+              fill=OL, width=max(2, u(0.008)))
 
     # ── 머리 ──
-    d.ellipse([cx - R, hcy - R, cx + R, hcy + R], fill=SKIN_C, outline=OL, width=LW)
+    d.ellipse([cx - R, hcy - u(0.192), cx + R, hcy + u(0.192)],
+              fill=SKIN_C, outline=OL, width=LW)
     # 볼터치
     for sgn in (-1, 1):
-        bx = cx + sgn * u(0.140)
-        d.ellipse([bx - u(0.034), hcy + u(0.016), bx + u(0.034), hcy + u(0.058)], fill=BLUSH_C)
-    # 눈
+        bx = cx + sgn * u(0.152)
+        d.ellipse([bx - u(0.030), hcy + u(0.028), bx + u(0.030), hcy + u(0.070)], fill=BLUSH_C)
+    # 눈: 크고 세로로 긴 타원 + 큰 검은 눈동자
     for sgn in (-1, 1):
-        ex = cx + sgn * u(0.082)
-        d.ellipse([ex - u(0.062), hcy - u(0.085), ex + u(0.062), hcy + u(0.040)],
+        ex = cx + sgn * u(0.072)
+        d.ellipse([ex - u(0.052), hcy - u(0.076), ex + u(0.052), hcy + u(0.058)],
                   fill=(255, 255, 255), outline=OL, width=LW)
-        d.ellipse([ex - u(0.038), hcy - u(0.055), ex + u(0.038), hcy + u(0.020)], fill=OL)
-        d.ellipse([ex - u(0.028), hcy - u(0.048), ex - u(0.004), hcy - u(0.024)],
+        d.ellipse([ex - u(0.030), hcy - u(0.052), ex + u(0.030), hcy + u(0.032)], fill=OL)
+        d.ellipse([ex - u(0.022), hcy - u(0.044), ex - u(0.004), hcy - u(0.022)],
                   fill=(255, 255, 255))
-    # 코 · 웃는 입
-    d.ellipse([cx - u(0.032), hcy + u(0.030), cx + u(0.032), hcy + u(0.078)],
+    # 코 (둥글고 큼) · 웃는 입
+    d.ellipse([cx - u(0.036), hcy + u(0.040), cx + u(0.036), hcy + u(0.096)],
               fill=NOSE_C, outline=OL, width=max(2, u(0.006)))
-    d.chord([cx - u(0.072), hcy + u(0.066), cx + u(0.072), hcy + u(0.166)], 0, 180,
+    d.chord([cx - u(0.062), hcy + u(0.084), cx + u(0.062), hcy + u(0.168)], 0, 180,
             fill=MOUTH_C, outline=OL, width=LW)
 
-    # ── 정모: 챙 → 금색 띠 → 크라운 → 독수리 엠블럼 ──
-    cy = hcy - u(0.140)
-    d.ellipse([cx - u(0.250), cy - u(0.004), cx + u(0.250), cy + u(0.086)],
+    # ── 정모 ──
+    # 챙 (짙은 남색, 아래로 굽음)
+    d.ellipse([cx - u(0.238), u(0.246), cx + u(0.238), u(0.318)],
               fill=NAVY, outline=OL, width=LW)
-    # 챙 위 격자 느낌의 밝은 선
-    d.arc([cx - u(0.250), cy - u(0.004), cx + u(0.250), cy + u(0.086)], 180, 360,
-          fill=(96, 106, 132), width=max(2, u(0.006)))
-    d.pieslice([cx - u(0.212), cy - u(0.245), cx + u(0.212), cy + u(0.046)], 180, 360,
+    # 격자 띠: 짙은 바탕에 흰 격자
+    gx0, gx1, gy0, gy1 = cx - u(0.206), cx + u(0.206), u(0.196), u(0.252)
+    d.rectangle([gx0, gy0, gx1, gy1], fill=(38, 46, 68), outline=OL, width=max(2, u(0.005)))
+    d.line([(gx0, (gy0 + gy1) // 2), (gx1, (gy0 + gy1) // 2)],
+           fill=(232, 236, 244), width=max(2, u(0.005)))
+    step = max(4, u(0.026))
+    for gx in range(gx0 + step, gx1, step):
+        d.line([(gx, gy0), (gx, gy1)], fill=(232, 236, 244), width=max(1, u(0.004)))
+    # 금색 띠
+    d.rounded_rectangle([cx - u(0.212), u(0.176), cx + u(0.212), u(0.208)],
+                        radius=u(0.010), fill=GOLD, outline=OL, width=max(2, u(0.006)))
+    # 흰 크라운 (둥근 돔)
+    d.pieslice([cx - u(0.196), u(0.012), cx + u(0.196), u(0.372)], 180, 360,
                fill=SHIRT_C, outline=OL, width=LW)
-    d.rounded_rectangle([cx - u(0.222), cy - u(0.030), cx + u(0.222), cy + u(0.012)],
-                        radius=u(0.012), fill=GOLD, outline=OL, width=max(2, u(0.006)))
-    # 독수리 엠블럼 (펼친 날개 + 태극)
-    ey = cy - u(0.096)
+    # 독수리 엠블럼: 펼친 날개 + 몸통 + 태극
+    ey = u(0.082)
+    # 좌우로 펼친 날개 (끝이 위로 들리는 형태)
     for sgn in (-1, 1):
-        d.polygon([(cx, ey - u(0.026)),
-                   (cx + sgn * u(0.096), ey - u(0.008)),
-                   (cx + sgn * u(0.040), ey + u(0.020))], fill=GOLD, outline=OL)
-    d.ellipse([cx - u(0.022), ey - u(0.036), cx + u(0.022), ey + u(0.026)],
+        d.polygon([(cx + sgn * u(0.012), ey - u(0.032)),
+                   (cx + sgn * u(0.054), ey - u(0.052)),
+                   (cx + sgn * u(0.106), ey - u(0.040)),
+                   (cx + sgn * u(0.086), ey - u(0.004)),
+                   (cx + sgn * u(0.034), ey + u(0.012))], fill=GOLD, outline=OL)
+    # 몸통 · 머리
+    d.ellipse([cx - u(0.019), ey - u(0.040), cx + u(0.019), ey + u(0.016)],
               fill=GOLD, outline=OL, width=max(2, u(0.005)))
-    d.ellipse([cx - u(0.011), ey - u(0.004), cx + u(0.011), ey + u(0.018)], fill=(198, 58, 58))
+    d.ellipse([cx - u(0.011), ey - u(0.058), cx + u(0.011), ey - u(0.034)],
+              fill=GOLD, outline=OL, width=max(2, u(0.005)))
+    # 태극
+    d.ellipse([cx - u(0.014), ey + u(0.012), cx + u(0.014), ey + u(0.040)],
+              fill=(240, 240, 244), outline=OL, width=max(2, u(0.005)))
+    d.chord([cx - u(0.014), ey + u(0.012), cx + u(0.014), ey + u(0.040)], 180, 360,
+            fill=(196, 52, 52))
+    d.chord([cx - u(0.014), ey + u(0.012), cx + u(0.014), ey + u(0.040)], 0, 180,
+            fill=(40, 68, 160))
     return lay
 
 
