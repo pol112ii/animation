@@ -32,6 +32,14 @@ GROUND_Y = 1400            # 지면 라인
 HORIZON_Y = 980            # 하늘/도로 경계
 RIDER_S = 1.34             # 인물 스케일 (세로 프레임을 채우도록 크게)
 
+# cm → px 환산. 1080x1920 세로 영상을 일반적인 스마트폰(가로 약 6.9cm)으로
+# 볼 때 기준이며, 화면에서 눈으로 잰 치수를 코드에 옮길 때 쓴다.
+PX_PER_CM = 156
+
+
+def cm(v: float) -> int:
+    return int(round(v * PX_PER_CM))
+
 # 상단 배지/하단 자막이 차지하는 영역을 피해 인물을 배치한다.
 #   상단 안전선 ~420 / 하단 안전선 ~1440
 
@@ -646,13 +654,15 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
 
         d = ImageDraw.Draw(img)
         if since >= 0.10:
-            # 정지 배지
+            # 정지 배지. 사방으로 0.3cm 키우고 글씨도 크고 굵게.
             a = ease_out((since - 0.10) / 0.35)
-            bw2 = int(lerp(60, 300, a))
-            d.rounded_rectangle([W // 2 - bw2, 300 - 54, W // 2 + bw2, 300 + 54],
-                                radius=16, fill=POLICE_RED)
+            grow = cm(0.3)
+            bw2 = int(lerp(60, 300 + grow, a))
+            bh2 = 54 + grow
+            d.rounded_rectangle([W // 2 - bw2, 300 - bh2, W // 2 + bw2, 300 + bh2],
+                                radius=20, fill=POLICE_RED)
             if a > 0.6:
-                text(d, (W // 2, 300), "단 속", 62, fill=WHITE, bold=0)
+                text(d, (W // 2, 300), "단 속", 80, fill=WHITE, bold=3, stroke_fill=POLICE_RED)
         # 포돌이 등장: 아래에서 튀어오르며 말풍선으로 단속 고지
         if since >= 0.40:
             k = ease_out(clamp((since - 0.40) / 0.45))
@@ -803,12 +813,15 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
     d = ImageDraw.Draw(img)
     p = (t - T_CATCH_END) / (T_TOTAL - T_CATCH_END)   # 0..1 (5초)
 
+    # 마무리 컷 전체를 0.7cm 위로 올린다
+    UP = cm(0.7)
+
     # 4개 항목 나열 (근거 조문 포함)
     for i, (label, amount, article, *_rest) in enumerate(VIOLATIONS):
         appear = clamp((p - i * 0.055) / 0.10)
         if appear <= 0:
             continue
-        y = 402 + i * 126
+        y = 402 - UP + i * 126
         a = ease_out(appear)
         text(d, (110, y), label, 46, fill=(int(lerp(20, 235, a)),) * 3, anchor="lm", bold=0)
         text(d, (110, y + 40), article, 28,
@@ -821,26 +834,28 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
     # 합계 롤업
     if p > 0.32:
         k = ease_out(clamp((p - 0.32) / 0.30))
-        d.line([110, 900, W - 110, 900], fill=(70, 78, 96), width=5)
-        text(d, (110, 985), "합계", 50, fill=(170, 180, 200), anchor="lm")
+        d.line([110, 900 - UP, W - 110, 900 - UP], fill=(70, 78, 96), width=5)
+        text(d, (110, 985 - UP), "합계", 50, fill=(170, 180, 200), anchor="lm")
         rolling = int(lerp(0, 260000, k) / 10000) * 10000
-        text(d, (W - 110, 985), won(rolling), int(lerp(70, 112, k)),
+        text(d, (W - 110, 985 - UP), won(rolling), int(lerp(70, 112, k)),
              fill=POLICE_RED, anchor="rm", bold=0)
 
     # 마지막 문장 (톤 다운 구간). 슬로건을 살리려고 한 단계 작게.
     if p > 0.50:
         k = ease_out(clamp((p - 0.50) / 0.20))
         c = int(214 * k)
-        text(d, (W // 2, 1222), "하지만", 36, fill=(c, c, c))
-        text(d, (W // 2, 1288), "돈으로 막을 수 없는 것도", 46, fill=(c, c, c), bold=0)
-        text(d, (W // 2, 1346), "있습니다", 46, fill=(c, c, c), bold=0)
+        # "하지만" 은 바로 아래 줄과 같은 크기로 맞춘다
+        text(d, (W // 2, 1222 - UP), "하지만", 46, fill=(c, c, c), bold=0)
+        text(d, (W // 2, 1288 - UP), "돈으로 막을 수 없는 것도", 46, fill=(c, c, c), bold=0)
+        text(d, (W // 2, 1346 - UP), "있습니다", 46, fill=(c, c, c), bold=0)
 
     # 슬로건: 이 영상의 결론이므로 노란색 + 굵게 강조
     if p > 0.64:
         k = ease_out(clamp((p - 0.64) / 0.20))
         col = (int(255 * k), int(210 * k), int(63 * k))
-        text(d, (W // 2, 1476), "당신의 안전은", 50, fill=col, bold=4, stroke_fill=(12, 16, 26))
-        text(d, (W // 2, 1544), "무엇과도 바꿀 수 없습니다", 50, fill=col, bold=4,
+        text(d, (W // 2, 1476 - UP), "당신의 안전은", 50, fill=col, bold=4,
+             stroke_fill=(12, 16, 26))
+        text(d, (W // 2, 1544 - UP), "무엇과도 바꿀 수 없습니다", 50, fill=col, bold=4,
              stroke_fill=(12, 16, 26))
 
     # 로고: 맨 아래
@@ -858,7 +873,7 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
             faded = lg.copy()
             faded.putalpha(lg.getchannel("A").point(lambda v: int(v * k)))
             panel.paste(faded, (pad, pad), faded)
-            img.paste(panel, ((W - pw) // 2, H - ph - 64), panel)
+            img.paste(panel, ((W - pw) // 2, H - ph - 64 - UP), panel)
     return img
 
 
