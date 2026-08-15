@@ -496,6 +496,20 @@ def draw_podori(size: int = 640) -> Image.Image:
 
 _PODORI: Image.Image | None = None
 
+LOGO_FILE = Path(__file__).resolve().parent.parent / "assets" / "pm-enforcement" / "logo.png"
+_LOGO: Image.Image | None = None
+
+
+def load_logo(width: int) -> Image.Image | None:
+    """마무리에 넣을 서울경찰청 로고. 없으면 None (로고 없이 렌더)."""
+    if not LOGO_FILE.exists():
+        print(f"  로고: 없음 ({LOGO_FILE} 에 넣으면 마무리에 표시)")
+        return None
+    im = Image.open(LOGO_FILE).convert("RGBA")
+    h = max(1, int(round(im.height * width / im.width)))
+    print(f"  로고: {LOGO_FILE.name} 사용 ({im.width}x{im.height} → {width}x{h})")
+    return im.resize((width, h), Image.LANCZOS)
+
 
 def speech_bubble(d: ImageDraw.ImageDraw, box, tail_to, lines):
     """포돌이 말풍선. lines = [(텍스트, 크기, 색)]"""
@@ -552,11 +566,13 @@ def zoom_box(img: Image.Image, box, out_size=(W, H)):
     # 프레임보다 큰 박스는 비율을 유지한 채 축소 (검은 여백 방지)
     k = min(1.0, img.width / bw, img.height / bh)
     bw, bh = bw * k, bh * k
-    iw, ih = int(round(bw)), int(round(bh))
-    x0 = max(0, min(img.width - iw, int(round(cx - bw / 2))))
-    y0 = max(0, min(img.height - ih, int(round(cy - bh / 2))))
-    crop = img.crop((x0, y0, x0 + iw, y0 + ih))
-    return crop.resize(out_size, Image.LANCZOS), (x0, y0, iw, ih)
+    x0 = min(max(0.0, cx - bw / 2), img.width - bw)
+    y0 = min(max(0.0, cy - bh / 2), img.height - bh)
+    # crop() 으로 정수 픽셀에 스냅시키면 프레임마다 크롭 원점이 ±1px 튀어
+    # 확대 구간이 떨린다. resize(box=...) 에 float 좌표를 그대로 넘겨
+    # 서브픽셀 정밀도로 리샘플한다.
+    out = img.resize(out_size, Image.LANCZOS, box=(x0, y0, x0 + bw, y0 + bh))
+    return out, (x0, y0, bw, bh)
 
 
 def stamp(d, xy, label, angle_seed=0, scale=1.0, alpha_col=POLICE_RED):
@@ -712,8 +728,9 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
         cur_cy = lerp(cy0, bcy, zp)
         cur_w = lerp(W, bw, zp)
         cur_h = lerp(H, bh, zp)
-        drift = 1.0 - 0.05 * ease_in_out(clamp((local - 0.5) / 3.5))
-        img, crop_rect = zoom_box(scene_static, (cur_cx, cur_cy, cur_w * drift, cur_h * drift))
+        # 줌인이 끝나면 완전히 고정한다. 예전의 느린 푸시인(drift)은 매 프레임
+        # 크롭 크기를 조금씩 바꿔 화면이 미세하게 흔들리는 원인이었다.
+        img, crop_rect = zoom_box(scene_static, (cur_cx, cur_cy, cur_w, cur_h))
 
         if local < 0.14:                                # 셔터 플래시
             img = Image.blend(img, Image.new("RGB", img.size, WHITE), 0.6 * (1 - local / 0.14))
@@ -820,16 +837,21 @@ def render_frame(t: float, scene_static: Image.Image) -> Image.Image:
     # 로고 + 슬로건
     if p > 0.74:
         k = ease_out(clamp((p - 0.74) / 0.22))
-        c = int(255 * k)
-        # NOTE: 공식 엠블럼 대신 쓰는 플레이스홀더. 배포본에서는 서울경찰청
-        #       공식 BI 이미지 파일로 교체할 것.
-        cxl, cyl = W // 2, 1600
-        r = 46
-        d.ellipse([cxl - r, cyl - r, cxl + r, cyl + r],
-                  outline=(int(60 * k), int(120 * k), int(220 * k)), width=6)
-        text(d, (cxl, cyl), "경찰", 34, fill=(int(90 * k), int(150 * k), int(240 * k)))
-        text(d, (W // 2, 1706), "서울경찰청", 52, fill=(c, c, c), bold=0)
-        text(d, (W // 2, 1780), "당신의 안전은 무엇과도 바꿀 수 없습니다", 34,
+        if _LOGO is not None:
+            # 로고는 감청/금색의 진한 색이라 어두운 배경에서 묻힌다.
+            # 원래 색을 살리려고 흰 패널 위에 올린다(리컬러 금지).
+            lg = _LOGO
+            pad = 40
+            pw, ph = lg.width + pad * 2, lg.height + pad * 2
+            panel = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
+            ImageDraw.Draw(panel).rounded_rectangle(
+                [0, 0, pw - 1, ph - 1], radius=24, fill=(255, 255, 255, int(242 * k)))
+            faded = lg.copy()
+            faded.putalpha(lg.getchannel("A").point(lambda v: int(v * k)))
+            panel.paste(faded, (pad, pad), faded)
+            img.paste(panel, ((W - pw) // 2, 1648 - ph // 2), panel)
+            d = ImageDraw.Draw(img)
+        text(d, (W // 2, 1800), "당신의 안전은 무엇과도 바꿀 수 없습니다", 34,
              fill=(int(150 * k), int(160 * k), int(180 * k)))
     return img
 
@@ -872,6 +894,7 @@ def main(argv=None) -> int:
     print("=" * 56)
 
     globals()["_PODORI"] = load_podori(int(700 * (H / 1920)))
+    globals()["_LOGO"] = load_logo(int(560 * (W / 1080)))
     _BG = draw_background()
     scene_static = draw_scene(offset_x=0, speed_lines=0.0)
 
