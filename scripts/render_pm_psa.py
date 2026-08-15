@@ -871,7 +871,7 @@ def main(argv=None) -> int:
     print(f"  폰트   {FONT_PATH}")
     print("=" * 56)
 
-    globals()["_PODORI"] = load_podori(int(640 * (H / 1920)))
+    globals()["_PODORI"] = load_podori(int(700 * (H / 1920)))
     _BG = draw_background()
     scene_static = draw_scene(offset_x=0, speed_lines=0.0)
 
